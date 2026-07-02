@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const GeneratedDescription = require("../models/GeneratedDescription");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -41,9 +42,23 @@ Key Features: ${features || "Not specified"}
 Write a 3-4 sentence product description only. Do not include headings, bullet points, or extra formatting. Just the description paragraph.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
     const result = await model.generateContent(prompt);
     const description = result.response.text().trim();
+
+    // Save to history (don't let a save failure block the response to the user)
+    try {
+      await GeneratedDescription.create({
+        productName,
+        ingredients,
+        weight,
+        features,
+        tone,
+        description,
+      });
+    } catch (saveError) {
+      console.error("Failed to save generation history:", saveError.message);
+    }
 
     res.json({
       success: true,
@@ -55,6 +70,17 @@ Write a 3-4 sentence product description only. Do not include headings, bullet p
     res.status(500).json({
       error: "Failed to generate description. Please check your API key.",
     });
+  }
+});
+
+// GET /api/generate/history - view past generations
+router.get("/history", async (req, res) => {
+  try {
+    const history = await GeneratedDescription.find().sort({ createdAt: -1 });
+    res.json(history);
+  } catch (error) {
+    console.error("Error fetching history:", error.message);
+    res.status(500).json({ error: "Failed to fetch history" });
   }
 });
 
