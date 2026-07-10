@@ -1,11 +1,19 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated, user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
 
   const links = [
     { href: "/", label: "Home" },
@@ -51,9 +59,23 @@ export default function Navbar() {
           >
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
-          <Link href="/generate" className="btn-primary text-sm hidden md:inline-flex">
-            Try Free →
-          </Link>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden md:inline text-sm text-gray-500 dark:text-gray-400">
+                {user?.name || user?.email}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
+            <Link href="/login" className="btn-primary text-sm hidden md:inline-flex">
+              Log In →
+            </Link>
+          )}
         </div>
       </div>
     </nav>

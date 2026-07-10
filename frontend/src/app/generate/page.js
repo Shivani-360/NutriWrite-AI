@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
 import { Loader, Toast } from "@/components/ui";
+import RouteGuard from "@/components/RouteGuard";
 
 const API_URL = "http://localhost:5000";
 
@@ -38,6 +39,14 @@ const EXAMPLES = [
 ];
 
 export default function GeneratePage() {
+  return (
+    <RouteGuard>
+      <GenerateContent />
+    </RouteGuard>
+  );
+}
+
+function GenerateContent() {
   const [form, setForm] = useState({
     productName: "",
     ingredients: "",

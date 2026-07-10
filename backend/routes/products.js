@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Product = require("../models/Product");
+const requireAuth = require("../middleware/auth");
 
 // GET all products (supports ?q= search by name)
 router.get("/", async (req, res) => {
@@ -27,8 +28,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create product
-router.post("/", async (req, res) => {
+// POST create product (protected)
+router.post("/", requireAuth, async (req, res) => {
   try {
     const { name, ingredients, weight, features } = req.body;
     if (!name || !ingredients) {
@@ -42,8 +43,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT update product
-router.put("/:id", async (req, res) => {
+// PUT update product (protected)
+router.put("/:id", requireAuth, async (req, res) => {
   try {
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
@@ -58,8 +59,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE product
-router.delete("/:id", async (req, res) => {
+// DELETE product (protected)
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
     const deleted = await Product.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: "Product not found" });

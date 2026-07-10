@@ -2,10 +2,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader } from "@/components/ui";
+import RouteGuard from "@/components/RouteGuard";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL = "http://localhost:5000";
 
 export default function DashboardPage() {
+  return (
+    <RouteGuard>
+      <DashboardContent />
+    </RouteGuard>
+  );
+}
+
+function DashboardContent() {
+  const { token } = useAuth();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -40,7 +51,10 @@ export default function DashboardPage() {
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this product?")) return;
-    await fetch(`${API_URL}/api/products/${id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/api/products/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     fetchProducts(search);
   };
 

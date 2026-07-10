@@ -1,0 +1,12 @@
+const rateLimit = require("express-rate-limit");
+
+// Max 5 attempts per 15 minutes per IP, applied to login/register
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again in 15 minutes." },
+});
+
+module.exports = authLimiter;
