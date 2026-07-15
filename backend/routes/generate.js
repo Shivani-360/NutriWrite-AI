@@ -42,7 +42,7 @@ Key Features: ${features || "Not specified"}
 Write a 3-4 sentence product description only. Do not include headings, bullet points, or extra formatting. Just the description paragraph.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
     const result = await model.generateContent(prompt);
     const description = result.response.text().trim();
 
