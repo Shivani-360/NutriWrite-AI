@@ -1,9 +1,10 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader, Toast } from "@/components/ui";
 import RouteGuard from "@/components/RouteGuard";
 
-const API_URL = "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const TONES = [
   {
@@ -41,12 +42,15 @@ const EXAMPLES = [
 export default function GeneratePage() {
   return (
     <RouteGuard>
-      <GenerateContent />
+      <Suspense fallback={<Loader text="Loading..." />}>
+        <GenerateContent />
+      </Suspense>
     </RouteGuard>
   );
 }
 
 function GenerateContent() {
+  const searchParams = useSearchParams();
   const [form, setForm] = useState({
     productName: "",
     ingredients: "",
@@ -58,6 +62,20 @@ function GenerateContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
+
+  // Pre-fill from a dashboard deep link, e.g. /generate?name=...&ingredients=...
+  useEffect(() => {
+    const name = searchParams.get("name");
+    const ingredients = searchParams.get("ingredients");
+    if (name || ingredients) {
+      setForm((prev) => ({
+        ...prev,
+        productName: name || prev.productName,
+        ingredients: ingredients || prev.ingredients,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setField = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
