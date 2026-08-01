@@ -84,15 +84,33 @@ router.post("/logout", (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-// GET /api/auth/me — returns the currently logged-in user
-router.get("/me", requireAuth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ id: user._id, email: user.email, name: user.name, avatar: user.avatar });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user" });
-  }
+// GET /api/auth/github/callback — GitHub redirects here after consent
+router.get("/github/callback", (req, res, next) => {
+  passport.authenticate("github", { session: true }, (err, user, info) => {
+    console.log("=== GitHub OAuth callback ===");
+    console.log("err:", err);
+    console.log("user:", user ? user._id : null);
+    console.log("info:", info);
+
+    if (err) {
+      console.error("OAuth error:", err);
+      return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+    }
+    if (!user) {
+      console.error("OAuth failed, no user. info:", info);
+      return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+    }
+
+    req.logIn(user, (loginErr) => {
+      if (loginErr) {
+        console.error("req.logIn error:", loginErr);
+        return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+      }
+      const token = signToken(user._id);
+      console.log("OAuth success, redirecting with token for user:", user._id);
+      res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`);
+    });
+  })(req, res, next);
 });
 
 // --- GitHub OAuth ---
