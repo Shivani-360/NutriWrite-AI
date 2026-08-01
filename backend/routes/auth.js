@@ -8,10 +8,24 @@ const { authLimiter } = require("../middleware/rateLimiter");
 const { registerSchema, loginSchema, validate } = require("../validators/authValidators");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const isProd = process.env.NODE_ENV === "production";
 
 // Sign a JWT for a given user id
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+// Shared cookie options — httpOnly means JS on the frontend can never read this
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days, matches JWT expiry
+  path: "/",
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie("token", token, COOKIE_OPTIONS);
+};
 
 // POST /api/auth/register
 router.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
@@ -25,9 +39,9 @@ router.post("/register", authLimiter, validate(registerSchema), async (req, res)
 
     const user = await User.create({ email, password, name });
     const token = signToken(user._id);
+    setAuthCookie(res, token);
 
     res.status(201).json({
-      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -52,9 +66,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
     }
 
     const token = signToken(user._id);
+    setAuthCookie(res, token);
 
     res.json({
-      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -63,8 +77,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
   }
 });
 
-// POST /api/auth/logout
+// POST /api/auth/logout — clears the cookie server-side
 router.post("/logout", (req, res) => {
+  res.clearCookie("token", { ...COOKIE_OPTIONS, maxAge: undefined });
   res.json({ message: "Logged out successfully" });
 });
 
@@ -103,8 +118,9 @@ router.get("/github/callback", (req, res, next) => {
         return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
       }
       const token = signToken(user._id);
-      console.log("OAuth success, redirecting with token for user:", user._id);
-      res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`);
+      setAuthCookie(res, token);
+      console.log("OAuth success, cookie set for user:", user._id);
+      res.redirect(`${FRONTEND_URL}/auth/callback`);
     });
   })(req, res, next);
 });
