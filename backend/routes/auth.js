@@ -8,24 +8,10 @@ const { authLimiter } = require("../middleware/rateLimiter");
 const { registerSchema, loginSchema, validate } = require("../validators/authValidators");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
-const isProd = process.env.NODE_ENV === "production";
 
 // Sign a JWT for a given user id
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-// Shared cookie options — httpOnly means JS on the frontend can never read this
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProd,           // only sent over HTTPS in production
-  sameSite: isProd ? "none" : "lax", // "none" needed if frontend/backend are on different domains in prod
-  maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days, matches JWT expiry
-  path: "/",
-};
-
-const setAuthCookie = (res, token) => {
-  res.cookie("token", token, COOKIE_OPTIONS);
-};
 
 // POST /api/auth/register
 router.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
@@ -39,9 +25,9 @@ router.post("/register", authLimiter, validate(registerSchema), async (req, res)
 
     const user = await User.create({ email, password, name });
     const token = signToken(user._id);
-    setAuthCookie(res, token);
 
     res.status(201).json({
+      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -55,7 +41,6 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // password has `select: false` on the schema, so opt back in
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(400).json({ error: "Invalid email or password" });
@@ -67,9 +52,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
     }
 
     const token = signToken(user._id);
-    setAuthCookie(res, token);
 
     res.json({
+      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -78,11 +63,26 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
   }
 });
 
-// POST /api/auth/logout — clears the cookie server-side
+// POST /api/auth/logout
 router.post("/logout", (req, res) => {
-  res.clearCookie("token", { ...COOKIE_OPTIONS, maxAge: undefined });
   res.json({ message: "Logged out successfully" });
 });
+
+// GET /api/auth/me — returns the currently logged-in user
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ id: user._id, email: user.email, name: user.name, avatar: user.avatar });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+// --- GitHub OAuth ---
+
+// GET /api/auth/github — kicks off the OAuth flow
+router.get("/github", passport.authenticate("github", { scope: ["user:email"], session: true }));
 
 // GET /api/auth/github/callback — GitHub redirects here after consent
 router.get("/github/callback", (req, res, next) => {
@@ -92,12 +92,8 @@ router.get("/github/callback", (req, res, next) => {
     console.log("user:", user ? user._id : null);
     console.log("info:", info);
 
-    if (err) {
-      console.error("OAuth error:", err);
-      return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
-    }
-    if (!user) {
-      console.error("OAuth failed, no user. info:", info);
+    if (err || !user) {
+      console.error("OAuth failed:", err || info);
       return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
     }
 
@@ -112,23 +108,5 @@ router.get("/github/callback", (req, res, next) => {
     });
   })(req, res, next);
 });
-
-// --- GitHub OAuth ---
-
-// GET /api/auth/github — kicks off the OAuth flow
-router.get("/github", passport.authenticate("github", { scope: ["user:email"], session: true }));
-
-// GET /api/auth/github/callback — GitHub redirects here after consent
-router.get(
-  "/github/callback",
-  passport.authenticate("github", { session: true, failureRedirect: `${FRONTEND_URL}/login?error=oauth_failed` }),
-  (req, res) => {
-    // req.user was set by the GitHub strategy's verify callback
-    const token = signToken(req.user._id);
-    setAuthCookie(res, token);
-    // No token in the URL anymore — the cookie is already set, just send them back
-    res.redirect(`${FRONTEND_URL}/auth/callback`);
-  }
-);
 
 module.exports = router;
