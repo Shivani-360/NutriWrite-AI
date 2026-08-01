@@ -31,7 +31,11 @@ app.use(
     secret: process.env.SESSION_SECRET || "nutriwrite-oauth-session",
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 5 * 60 * 1000 }, // 5 minutes, just long enough for the OAuth redirect
+    cookie: {
+      maxAge: 5 * 60 * 1000, // 5 minutes, just long enough for the OAuth redirect
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    },
   })
 );
 app.use(passport.initialize());
