@@ -1,5 +1,6 @@
 import Hero from "@/components/Hero";
 import Card from "@/components/Card";
+import Reveal from "@/components/Reveal";
 import Link from "next/link";
 
 const features = [
@@ -48,37 +49,43 @@ export default function HomePage() {
       <Hero />
 
       {/* Features */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-gray-900">
+      <section className="py-20 px-4 bg-paper dark:bg-gray-900">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-4">
-            Everything you need to write better product content
-          </h2>
-          <p className="text-center text-gray-500 dark:text-gray-400 mb-12 max-w-xl mx-auto">
-            NutriWrite AI handles the writing so you can focus on growing your food business.
-          </p>
+          <Reveal>
+            <h2 className="heading-display text-3xl text-center text-ink dark:text-white mb-4">
+              Everything you need to write better product content
+            </h2>
+            <p className="text-center text-ink-dim dark:text-gray-400 mb-12 max-w-xl mx-auto">
+              NutriWrite AI handles the writing so you can focus on growing your food business.
+            </p>
+          </Reveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f) => (
-              <Card key={f.title} icon={f.icon} title={f.title} description={f.description} />
+            {features.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.08}>
+                <Card icon={f.icon} title={f.title} description={f.description} />
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-paper dark:bg-gray-950">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
-            How it works
-          </h2>
+          <Reveal>
+            <h2 className="heading-display text-3xl text-center text-ink dark:text-white mb-12">
+              How it works
+            </h2>
+          </Reveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {steps.map((s) => (
-              <div key={s.step} className="text-center">
+            {steps.map((s, i) => (
+              <Reveal key={s.step} delay={i * 0.1} className="text-center">
                 <div className="w-12 h-12 bg-brand-600 dark:bg-brand-500 text-white rounded-full flex items-center justify-center font-bold text-sm mx-auto mb-4">
                   {s.step}
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{s.desc}</p>
-              </div>
+                <h3 className="font-semibold text-ink dark:text-white mb-2">{s.title}</h3>
+                <p className="text-sm text-ink-dim dark:text-gray-400">{s.desc}</p>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -86,8 +93,8 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="py-20 px-4 bg-brand-600 dark:bg-brand-700">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <Reveal className="max-w-2xl mx-auto text-center">
+          <h2 className="heading-display text-3xl text-white mb-4">
             Ready to write better product descriptions?
           </h2>
           <p className="text-brand-100 mb-8">
@@ -99,7 +106,7 @@ export default function HomePage() {
           >
             Start Generating Free →
           </Link>
-        </div>
+        </Reveal>
       </section>
     </>
   );

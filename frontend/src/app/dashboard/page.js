@@ -1,13 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Loader, Toast } from "@/components/ui";
+import { motion } from "framer-motion";
+import Tilt from "react-parallax-tilt";
+import { Toast } from "@/components/ui";
 import RouteGuard from "@/components/RouteGuard";
 import ProductModal from "@/components/ProductModal";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import { useAuth } from "@/context/AuthContext";
+import UndoToast from "@/components/UndoToast";
+import Sprout from "@/components/Sprout";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const UNDO_WINDOW_MS = 4000;
 
 export default function DashboardPage() {
   return (
@@ -18,7 +21,6 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
-  const { token } = useAuth();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,11 +28,21 @@ function DashboardContent() {
 
   // Modal state: null = closed, {} = create mode, {product} = edit mode
   const [modalProduct, setModalProduct] = useState(undefined); // undefined = closed
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null); // { message, type }
 
+  // --- Soft delete / undo state ---
+  const [hiddenIds, setHiddenIds] = useState(new Set());
+  const [undoTarget, setUndoTarget] = useState(null); // the product currently show-able as "undo"
+  const deleteTimers = useRef({}); // productId -> timeoutId
+
   const showToast = (message, type = "success") => setToast({ message, type });
+
+  // Clean up any pending delete timers if the component unmounts mid-countdown
+  useEffect(() => {
+    return () => {
+      Object.values(deleteTimers.current).forEach(clearTimeout);
+    };
+  }, []);
 
   const fetchProducts = async (q = "") => {
     setLoading(true);
@@ -67,9 +79,9 @@ function DashboardContent() {
         isEdit ? `${API_URL}/api/products/${modalProduct._id}` : `${API_URL}/api/products`,
         {
           method: isEdit ? "PUT" : "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(formData),
         }
@@ -85,35 +97,63 @@ function DashboardContent() {
     }
   };
 
-  // --- DELETE ---
-  const handleDeleteConfirmed = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  // --- SOFT DELETE ---
+  // Hides the card immediately and shows an Undo toast. The real DELETE
+  // call only fires once the undo window expires without a click.
+  const handleDeleteClick = (product) => {
+    setHiddenIds((prev) => new Set(prev).add(product._id));
+    setUndoTarget(product);
+
+    const timer = setTimeout(() => finalizeDelete(product), UNDO_WINDOW_MS);
+    deleteTimers.current[product._id] = timer;
+  };
+
+  const finalizeDelete = async (product) => {
+    delete deleteTimers.current[product._id];
     try {
-      const res = await fetch(`${API_URL}/api/products/${deleteTarget._id}`, {
+      const res = await fetch(`${API_URL}/api/products/${product._id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to delete product");
       }
-      setDeleteTarget(null);
-      await fetchProducts(search);
-      showToast("Product deleted", "success");
+      // Permanently gone — clear it from the actual products list too
+      setProducts((prev) => prev.filter((p) => p._id !== product._id));
     } catch (err) {
+      // Delete failed — bring the card back and let the user know
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        next.delete(product._id);
+        return next;
+      });
       showToast(err.message || "Failed to delete product", "error");
     } finally {
-      setDeleting(false);
+      setUndoTarget((current) => (current?._id === product._id ? null : current));
     }
   };
+
+  const handleUndo = () => {
+    if (!undoTarget) return;
+    clearTimeout(deleteTimers.current[undoTarget._id]);
+    delete deleteTimers.current[undoTarget._id];
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      next.delete(undoTarget._id);
+      return next;
+    });
+    setUndoTarget(null);
+  };
+
+  const visibleProducts = products.filter((p) => !hiddenIds.has(p._id));
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your food products</p>
+          <h1 className="heading-display text-3xl text-ink dark:text-white">Dashboard</h1>
+          <p className="text-ink-dim dark:text-gray-400 mt-1">Manage your food products</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button className="btn-secondary" onClick={() => setModalProduct({})}>
@@ -152,17 +192,24 @@ function DashboardContent() {
 
       {/* Content */}
       {loading ? (
-        <Loader text="Loading products..." />
+        <div className="flex flex-col items-center justify-center py-16">
+          <Sprout pose="thinking" size={100} />
+          <p className="text-ink-dim dark:text-gray-400 text-sm mt-4">Loading products...</p>
+        </div>
       ) : error ? (
         <div className="card text-center py-12">
-          <p className="text-4xl mb-4">⚠️</p>
+          <div className="flex justify-center mb-4">
+            <Sprout pose="confused" size={90} />
+          </div>
           <p className="text-red-500 dark:text-red-400 font-medium mb-2">{error}</p>
           <p className="text-sm text-gray-400">Start your backend: <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">npm run dev</code> in the backend folder</p>
         </div>
-      ) : products.length === 0 ? (
+      ) : visibleProducts.length === 0 ? (
         <div className="card text-center py-16">
-          <p className="text-5xl mb-4">📦</p>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
+          <div className="flex justify-center mb-4">
+            <Sprout pose={search ? "confused" : "sleeping"} size={100} />
+          </div>
+          <p className="text-ink-dim dark:text-gray-400 mb-6">
             {search ? `No products match "${search}".` : "No products yet — add your first one."}
           </p>
           <button className="btn-primary" onClick={() => setModalProduct({})}>
@@ -171,50 +218,65 @@ function DashboardContent() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {products.map((product) => (
-            <div key={product._id} className="card hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
-                  {product.name}
-                </h3>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => setModalProduct(product)}
-                    className="text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors text-sm"
-                    aria-label="Edit product"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(product)}
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm"
-                    aria-label="Delete product"
-                  >
-                    🗑️
-                  </button>
+          {visibleProducts.map((product, i) => (
+            <motion.div
+              key={product._id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
+            >
+              <Tilt
+                tiltMaxAngleX={8}
+                tiltMaxAngleY={8}
+                scale={1.02}
+                transitionSpeed={1500}
+                glareEnable={false}
+                className="card hover:shadow-md transition-shadow h-full"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-semibold text-ink dark:text-white text-lg">
+                    {product.name}
+                  </h3>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setModalProduct(product)}
+                      className="text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors text-sm"
+                      aria-label="Edit product"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(product)}
+                      className="text-gray-400 hover:text-red-500 transition-colors text-sm"
+                      aria-label="Delete product"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
-                <p><span className="font-medium text-gray-700 dark:text-gray-300">Ingredients:</span> {product.ingredients}</p>
-                {product.weight && <p><span className="font-medium text-gray-700 dark:text-gray-300">Weight:</span> {product.weight}</p>}
-                {product.features && <p><span className="font-medium text-gray-700 dark:text-gray-300">Features:</span> {product.features}</p>}
-              </div>
-              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <Link
-                  href={`/generate?name=${encodeURIComponent(product.name)}&ingredients=${encodeURIComponent(product.ingredients)}`}
-                  className="text-brand-600 dark:text-brand-400 text-sm font-medium hover:underline"
-                >
-                  Generate description →
-                </Link>
-              </div>
-            </div>
+                <div className="space-y-1.5 text-sm text-ink-dim dark:text-gray-400">
+                  <p><span className="font-medium text-gray-700 dark:text-gray-300">Ingredients:</span> {product.ingredients}</p>
+                  {product.weight && <p><span className="font-medium text-gray-700 dark:text-gray-300">Weight:</span> {product.weight}</p>}
+                  {product.features && <p><span className="font-medium text-gray-700 dark:text-gray-300">Features:</span> {product.features}</p>}
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <Link
+                    href={`/generate?name=${encodeURIComponent(product.name)}&ingredients=${encodeURIComponent(product.ingredients)}`}
+                    className="text-brand-600 dark:text-brand-400 text-sm font-medium hover:underline"
+                  >
+                    Generate description →
+                  </Link>
+                </div>
+              </Tilt>
+            </motion.div>
           ))}
         </div>
       )}
 
-      {!loading && !error && products.length > 0 && (
+      {!loading && !error && visibleProducts.length > 0 && (
         <p className="text-sm text-gray-400 dark:text-gray-500 mt-6 text-center">
-          {products.length} product{products.length !== 1 ? "s" : ""} found
+          {visibleProducts.length} product{visibleProducts.length !== 1 ? "s" : ""} found
         </p>
       )}
 
@@ -227,18 +289,14 @@ function DashboardContent() {
         />
       )}
 
-      {/* Delete confirmation */}
-      {deleteTarget && (
-        <ConfirmDialog
-          title="Delete this product?"
-          message={`"${deleteTarget.name}" will be permanently removed.`}
-          onConfirm={handleDeleteConfirmed}
-          onCancel={() => setDeleteTarget(null)}
-          loading={deleting}
-        />
-      )}
+      {/* Undo toast — replaces the old delete confirmation dialog */}
+      <UndoToast
+        message={undoTarget ? `"${undoTarget.name}" deleted` : null}
+        onUndo={handleUndo}
+        duration={UNDO_WINDOW_MS}
+      />
 
-      {/* Toast feedback */}
+      {/* Regular toast feedback (save/update/errors) */}
       {toast && (
         <Toast
           message={toast.message}

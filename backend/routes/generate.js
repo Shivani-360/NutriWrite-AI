@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const GeneratedDescription = require("../models/GeneratedDescription");
+const { generateLimiter } = require("../middleware/rateLimiter");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -14,8 +15,8 @@ const tonePrompts = {
   "health-focused": `You are a health and wellness food copywriter. Write an energetic, informative product description that highlights nutritional benefits, clean ingredients, and healthy lifestyle values. Use motivating, benefit-driven language.`,
 };
 
-// POST /api/generate
-router.post("/", async (req, res) => {
+// POST /api/generate — rate limited, since each call spends real Gemini quota
+router.post("/", generateLimiter, async (req, res) => {
   try {
     const { productName, ingredients, weight, features, tone } = req.body;
 
@@ -73,7 +74,7 @@ Write a 3-4 sentence product description only. Do not include headings, bullet p
   }
 });
 
-// GET /api/generate/history - view past generations
+// GET /api/generate/history - view past generations (no rate limit — read-only, free)
 router.get("/history", async (req, res) => {
   try {
     const history = await GeneratedDescription.find().sort({ createdAt: -1 });

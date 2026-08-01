@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -21,5 +21,74 @@
   }
   .card {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm;
+  }
+
+  /* New: headline style for use on hero/marketing sections */
+  .heading-display {
+    @apply font-display font-medium tracking-tight;
+  }
+
+  /* New: tone tag chips, color-coded to match the tone selector across the app */
+  .tone-chip-casual {
+    @apply bg-accent-400 text-white;
+  }
+  .tone-chip-professional {
+    @apply bg-berry-600 text-white;
+  }
+  .tone-chip-playful {
+    @apply bg-brand-400 text-white;
+  }
+}
+/* ---- Sprout mascot animations ---- */
+@keyframes sprout-bob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-9px) rotate(1deg); }
+}
+@keyframes sprout-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes sprout-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+@keyframes sprout-dot-pulse {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+@keyframes sprout-hop {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-22px) rotate(-6deg); }
+  60% { transform: translateY(0) rotate(6deg); }
+}
+@keyframes sprout-wave-arm {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(20deg); }
+}
+@keyframes sprout-tilt-shake {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes sprout-q-float {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(-6px); opacity: 1; }
+}
+@keyframes sprout-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+@keyframes sprout-zzz-float {
+  0% { transform: translateY(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-18px); opacity: 0; }
+}
+@keyframes sprout-wink {
+  0%, 85%, 100% { transform: scaleY(1); }
+  90% { transform: scaleY(0.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="sprout-"] {
+    animation: none !important;
   }
 }

@@ -3,6 +3,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageTransition from "@/components/PageTransition";
 
 export const metadata = {
   title: "NutriWrite AI – Food Product Description Generator",
@@ -17,7 +18,9 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <AuthProvider>
             <Navbar />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1">
+              <PageTransition>{children}</PageTransition>
+            </main>
             <Footer />
           </AuthProvider>
         </ThemeProvider>

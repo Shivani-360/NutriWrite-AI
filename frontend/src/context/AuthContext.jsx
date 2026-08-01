@@ -4,83 +4,74 @@ import { createContext, useContext, useEffect, useState } from "react";
 const AuthContext = createContext();
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-const TOKEN_KEY = "nutriwrite-token";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true); // true until we've checked localStorage
+  const [loading, setLoading] = useState(true); // true until we've checked the cookie
 
-  // On mount, restore the token and fetch the current user
+  // On mount, ask the backend "who am I" — the httpOnly cookie goes along
+  // automatically as long as fetch calls include credentials: "include".
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-      fetchMe(stored);
-    } else {
-      setLoading(false);
-    }
+    fetchMe();
   }, []);
 
-  const fetchMe = async (jwt) => {
+  const fetchMe = async () => {
     try {
       const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${jwt}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Session invalid");
       const data = await res.json();
       setUser(data);
     } catch {
-      // Token expired or invalid — clear it
-      localStorage.removeItem(TOKEN_KEY);
-      setToken(null);
       setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveSession = (jwt, userData) => {
-    localStorage.setItem(TOKEN_KEY, jwt);
-    setToken(jwt);
-    setUser(userData);
-  };
-
   const register = async (email, password, name) => {
     const res = await fetch(`${API_URL}/api/auth/register`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, name }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Registration failed");
-    saveSession(data.token, data.user);
+    setUser(data.user);
     return data;
   };
 
   const login = async (email, password) => {
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Login failed");
-    saveSession(data.token, data.user);
+    setUser(data.user);
     return data;
   };
 
-  // Called by /auth/callback after a GitHub OAuth redirect delivers a token
-  const loginWithToken = async (jwt) => {
-    localStorage.setItem(TOKEN_KEY, jwt);
-    setToken(jwt);
-    await fetchMe(jwt);
+  // Called by /auth/callback after a GitHub OAuth redirect — the cookie is
+  // already set by the backend, we just need to fetch who that cookie belongs to.
+  const completeOAuthLogin = async () => {
+    setLoading(true);
+    await fetchMe();
   };
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      setUser(null);
+    }
   };
 
   const loginWithGithub = () => {
@@ -91,12 +82,11 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
         loading,
         isAuthenticated: !!user,
         register,
         login,
-        loginWithToken,
+        completeOAuthLogin,
         loginWithGithub,
         logout,
       }}

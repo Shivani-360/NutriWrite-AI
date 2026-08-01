@@ -4,14 +4,28 @@ const passport = require("passport");
 const router = express.Router();
 const User = require("../models/User");
 const requireAuth = require("../middleware/auth");
-const authLimiter = require("../middleware/rateLimiter");
+const { authLimiter } = require("../middleware/rateLimiter");
 const { registerSchema, loginSchema, validate } = require("../validators/authValidators");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const isProd = process.env.NODE_ENV === "production";
 
 // Sign a JWT for a given user id
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+// Shared cookie options — httpOnly means JS on the frontend can never read this
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: isProd,           // only sent over HTTPS in production
+  sameSite: isProd ? "none" : "lax", // "none" needed if frontend/backend are on different domains in prod
+  maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days, matches JWT expiry
+  path: "/",
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie("token", token, COOKIE_OPTIONS);
+};
 
 // POST /api/auth/register
 router.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
@@ -25,9 +39,9 @@ router.post("/register", authLimiter, validate(registerSchema), async (req, res)
 
     const user = await User.create({ email, password, name });
     const token = signToken(user._id);
+    setAuthCookie(res, token);
 
     res.status(201).json({
-      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -53,9 +67,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
     }
 
     const token = signToken(user._id);
+    setAuthCookie(res, token);
 
     res.json({
-      token,
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (error) {
@@ -64,10 +78,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
   }
 });
 
-// POST /api/auth/logout
-// JWTs are stateless, so there's nothing to invalidate server-side —
-// this endpoint exists for a consistent API; the frontend clears the token.
+// POST /api/auth/logout — clears the cookie server-side
 router.post("/logout", (req, res) => {
+  res.clearCookie("token", { ...COOKIE_OPTIONS, maxAge: undefined });
   res.json({ message: "Logged out successfully" });
 });
 
@@ -94,8 +107,9 @@ router.get(
   (req, res) => {
     // req.user was set by the GitHub strategy's verify callback
     const token = signToken(req.user._id);
-    // Hand the JWT to the frontend via a short-lived query param
-    res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`);
+    setAuthCookie(res, token);
+    // No token in the URL anymore — the cookie is already set, just send them back
+    res.redirect(`${FRONTEND_URL}/auth/callback`);
   }
 );
 

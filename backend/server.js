@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 const session = require("express-session");
 const connectDB = require("./config/db");
@@ -16,11 +18,13 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Middleware
+app.use(helmet());
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Session is only used to hold OAuth "state" during the GitHub handshake —
-// all API auth after that is stateless JWT via the Authorization header.
+// all API auth after that is via an httpOnly JWT cookie.
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "nutriwrite-oauth-session",
