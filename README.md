@@ -19,8 +19,6 @@ AI-powered product description generator for food businesses — enter a product
 |---|---|
 |![Home](./docs/Generate.png) |![Home](./docs/Login.png) |
 
-> Replace the placeholders above with your actual screenshots — e.g. `![Home](./docs/screenshots/home.png)` once the images are added to the repo.
-
 ---
 
 ## ✨ Features
