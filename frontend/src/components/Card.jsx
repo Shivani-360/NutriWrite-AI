@@ -1,6 +1,6 @@
 export default function Card({ icon, title, description, className = "" }) {
   return (
-    <div className={`card hover:shadow-md transition-shadow ${className}`}>
+    <div className={`card ${className}`}>
       {icon && (
         <div className="text-3xl mb-4">{icon}</div>
       )}
