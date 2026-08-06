@@ -102,11 +102,6 @@ router.get("/github", passport.authenticate("github", { scope: ["user:email"], s
 // GET /api/auth/github/callback — GitHub redirects here after consent
 router.get("/github/callback", (req, res, next) => {
   passport.authenticate("github", { session: true }, (err, user, info) => {
-    console.log("=== GitHub OAuth callback ===");
-    console.log("err:", err);
-    console.log("user:", user ? user._id : null);
-    console.log("info:", info);
-
     if (err || !user) {
       console.error("OAuth failed:", err || info);
       return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
@@ -119,7 +114,6 @@ router.get("/github/callback", (req, res, next) => {
       }
       const token = signToken(user._id);
       setAuthCookie(res, token);
-      console.log("OAuth success, cookie set for user:", user._id);
       res.redirect(`${FRONTEND_URL}/auth/callback`);
     });
   })(req, res, next);

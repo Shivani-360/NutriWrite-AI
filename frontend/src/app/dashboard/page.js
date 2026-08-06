@@ -9,7 +9,7 @@ import ProductModal from "@/components/ProductModal";
 import UndoToast from "@/components/UndoToast";
 import Sprout from "@/components/Sprout";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = "";
 const UNDO_WINDOW_MS = 4000;
 
 export default function DashboardPage() {

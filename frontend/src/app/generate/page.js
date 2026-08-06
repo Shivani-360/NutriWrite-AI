@@ -5,7 +5,7 @@ import { Toast } from "@/components/ui";
 import RouteGuard from "@/components/RouteGuard";
 import Sprout from "@/components/Sprout";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = "";
 
 const TONES = [
   {
