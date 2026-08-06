@@ -1,250 +1,193 @@
-# NutriWrite AI
+# 🥗 NutriWrite AI
 
-An AI-powered tool that helps food businesses generate professional product descriptions in three tones — **Premium**, **Traditional**, and **Health-Focused** — using Google Gemini AI.
-
-Built as part of a 9-week AI-Assisted Full Stack Web Development internship.
+AI-powered product description generator for food businesses — enter a product's details, pick a tone, and get a professional, ready-to-use description in seconds.
 
 ---
 
 ## 🚀 Live Demo
 
-- **Live App:** [https://nutri-write-ai.vercel.app](https://nutri-write-ai.vercel.app)
-- **Live API:** [https://nutriwrite-ai-backend.onrender.com](https://nutriwrite-ai-backend.onrender.com)
+**App:** [nutri-write-ai.vercel.app](https://nutri-write-ai.vercel.app)
 
-> **Note:** The backend runs on Render's free tier, which spins down after 15 minutes of inactivity. The first request after idle time can take 30–60 seconds to respond while the server wakes up — this is expected, not a bug.
+
+## 📸 Screenshots
+
+| Home | Dashboard |
+|---|---|
+| ![Home](./docs/Home.png) | ![Home](./docs/Dashboard.png) |
+
+| Generate | Login |
+|---|---|
+|![Home](./docs/Generate.png) |![Home](./docs/Login.png) |
+
+> Replace the placeholders above with your actual screenshots — e.g. `![Home](./docs/screenshots/home.png)` once the images are added to the repo.
 
 ---
 
-## Tech Stack
+## ✨ Features
+
+- **AI description generation** — three selectable tones (Premium, Traditional, Health-Focused), each with its own prompt style, powered by Google Gemini
+- **Product dashboard** — create, edit, search, and soft-delete products, with undo
+- **Regenerate & compare** — re-run a generation and compare against the previous result
+- **Authentication** — email/password signup and login, plus GitHub OAuth
+- **Generation history** — every AI generation is saved and viewable
+- **Dark mode** — full light/dark theme support across the app
+- **Responsive design** — works across desktop, tablet, and mobile
+
+---
+
+## 🛠️ Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), Tailwind CSS |
-| Backend | Node.js, Express.js |
-| Database | MongoDB Atlas + Mongoose |
-| AI | Google Gemini API |
-| Auth | JWT (httpOnly cookies) + GitHub OAuth (Passport.js) |
-| Hosting | Vercel (frontend) + Render (backend) |
+|---|---|
+| Frontend | Next.js 14 (App Router), React 18, Tailwind CSS, Framer Motion |
+| Backend | Node.js, Express |
+| Database | MongoDB Atlas (Mongoose) |
+| AI | Google Gemini (`gemini-3-flash-preview`) |
+| Auth | JWT (httpOnly cookies) + Passport.js GitHub OAuth |
+| Hosting | Vercel (frontend), Render (backend), MongoDB Atlas (database) |
 
 ---
 
-## Features
-
-- Generate food product descriptions in 3 tones using Gemini AI
-- Save and manage products (full CRUD)
-- Auto-save every AI-generated description to history
-- Regenerate a description and compare old vs. new before keeping one
-- User accounts — email/password registration and login, plus GitHub OAuth
-- Secure, httpOnly-cookie-based session handling
-- Soft delete with an Undo option on product removal
-- Dark / light mode toggle
-- RESTful API with search support
-
----
-
-## Database
-
-### Why MongoDB?
-
-MongoDB was chosen over a relational database for the following reasons:
-
-- **Flexible schema** — food product data varies widely; some products have weights, others don't. A document model handles this naturally without nullable columns.
-- **JSON-native** — our Express API already works with JSON. MongoDB stores data in BSON (binary JSON), so there's no impedance mismatch between the API layer and the database.
-- **Free hosted tier** — MongoDB Atlas M0 is free forever, making it ideal for an internship project with a ₹0 budget.
-- **Mongoose ODM** — provides schema validation, timestamps, and query helpers on top of MongoDB's flexibility.
-
-### Schema Diagram
-
-![NutriWrite AI Schema Diagram](./docs/W5_SchemaDiagram.png)
-
-### Collections
-
-**User**
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `_id` | ObjectId | Auto | Primary key |
-| `email` | String | ✅ | Unique |
-| `password` | String | ❌ | Hashed; not set for OAuth-only accounts |
-| `name` | String | ❌ | |
-| `githubId` | String | ❌ | Set for GitHub OAuth accounts |
-| `avatar` | String | ❌ | |
-| `createdAt` | Date | Auto | Mongoose timestamp |
-| `updatedAt` | Date | Auto | Mongoose timestamp |
-
-**Product**
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `_id` | ObjectId | Auto | Primary key |
-| `name` | String | ✅ | Product name |
-| `ingredients` | String | ✅ | Comma-separated ingredients |
-| `weight` | String | ❌ | e.g. "100g" |
-| `features` | String | ❌ | Key selling points |
-| `createdAt` | Date | Auto | Mongoose timestamp |
-| `updatedAt` | Date | Auto | Mongoose timestamp |
-
-**GeneratedDescription**
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `_id` | ObjectId | Auto | Primary key |
-| `productName` | String | ✅ | Name at time of generation |
-| `ingredients` | String | ✅ | Ingredients at time of generation |
-| `weight` | String | ❌ | |
-| `features` | String | ❌ | |
-| `tone` | String | ✅ | One of: premium, traditional, health-focused |
-| `description` | String | ✅ | AI-generated text |
-| `product` | ObjectId | ❌ | FK reference to Product (optional) |
-| `createdAt` | Date | Auto | Mongoose timestamp |
-| `updatedAt` | Date | Auto | Mongoose timestamp |
-
-### Relationship
-
-A `Product` can have zero or many `GeneratedDescription` records linked to it via the `product` field. The link is optional — descriptions can be generated without saving a product first.
-
----
-
-## API Endpoints
-
-### Auth
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Create an account |
-| POST | `/api/auth/login` | Log in with email/password |
-| POST | `/api/auth/logout` | Clear the session cookie |
-| GET | `/api/auth/me` | Get the currently logged-in user |
-| GET | `/api/auth/github` | Start GitHub OAuth flow |
-| GET | `/api/auth/github/callback` | GitHub OAuth callback |
-
-### Products
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/products` | Get all products (supports `?q=` search) |
-| GET | `/api/products/:id` | Get single product |
-| POST | `/api/products` | Create new product (auth required) |
-| PUT | `/api/products/:id` | Update product (auth required) |
-| DELETE | `/api/products/:id` | Delete product (auth required) |
-
-### Generate
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/generate` | Generate AI description |
-| GET | `/api/generate/history` | Get all past generations |
-
----
-
-## Project Setup
+## ⚙️ Setup Instructions
 
 ### Prerequisites
+- Node.js 18+
+- A MongoDB Atlas connection string
+- A Google Gemini API key
+- A GitHub OAuth App (for GitHub login)
 
-- Node.js v18+
-- MongoDB Atlas account (free M0 tier)
-- Google Gemini API key (from [aistudio.google.com](https://aistudio.google.com/apikey))
-- A GitHub OAuth App (for GitHub login) — create one at [github.com/settings/developers](https://github.com/settings/developers)
-
-### 1. Clone the repository
-
+### 1. Clone the repo
 ```bash
 git clone https://github.com/Shivani-360/NutriWrite-AI.git
 cd NutriWrite-AI
 ```
 
-### 2. Set up the backend
-
+### 2. Backend setup
 ```bash
 cd backend
 npm install
+cp .env.example .env   # then fill in the values below
+npm run dev             # starts on http://localhost:5000
 ```
 
-Create a `.env` file in the `backend/` folder (never commit this) — see [Environment Variables](#environment-variables) below for the full list.
-
-Start the backend:
-
-```bash
-npm run dev
-```
-
-You should see:
-```
-✅ Server running on http://localhost:5000
-✅ MongoDB connected: cluster0.xxxxx.mongodb.net
-```
-
-### 3. Set up the frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs at `http://localhost:3000`.
-
-### 4. Set up the database
-
-1. Create a free cluster at [mongodb.com/cloud/atlas](https://mongodb.com/cloud/atlas)
-2. Create a database user with read/write access
-3. Under **Network Access**, allow connections from `0.0.0.0/0`
-4. Get your connection string and paste it into `backend/.env` as `MONGODB_URI`
-5. The `nutriwrite` database and collections are created automatically when you first write data — no manual migration needed
-
----
-
-## Environment Variables
-
-**Backend** (`backend/.env`):
-
+**`backend/.env`**
 ```
 PORT=5000
-MONGODB_URI=your_mongodb_connection_string_here
-GEMINI_API_KEY=your_gemini_api_key_here
+MONGODB_URI=your_mongodb_atlas_connection_string
+GEMINI_API_KEY=your_gemini_api_key
 JWT_SECRET=a_long_random_string
 SESSION_SECRET=a_different_long_random_string
 FRONTEND_URL=http://localhost:3000
 GITHUB_CLIENT_ID=your_github_oauth_client_id
 GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
 GITHUB_CALLBACK_URL=http://localhost:5000/api/auth/github/callback
-NODE_ENV=development
 ```
 
-**Frontend** (`frontend/.env.local`):
-
+### 3. Frontend setup
+```bash
+cd frontend
+npm install
+npm run dev              # starts on http://localhost:3000
 ```
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
 
-In production (Render/Vercel), the same variables are set via each platform's dashboard rather than a `.env` file, with `FRONTEND_URL`/`NEXT_PUBLIC_API_URL`/`GITHUB_CALLBACK_URL` pointing at the live URLs and `NODE_ENV=production`.
+**`frontend/.env.local`** — not required for local dev; the app calls the backend directly via `http://localhost:5000` by default. In production, API calls are proxied through Next.js rewrites (see `next.config.js`), so no public API URL needs to be exposed to the browser.
 
 ---
 
-## Deployment
+## 📡 API Documentation
 
-- **Frontend** is deployed on [Vercel](https://vercel.com), built from the `frontend/` directory.
-- **Backend** is deployed on [Render](https://render.com), built from the `backend/` directory.
-- **Database** is hosted on MongoDB Atlas.
+Base URL (production): `https://nutriwrite-ai-backend.onrender.com/api`
 
-### Known Limitations (Free Tier)
+### Auth
+| Method | Endpoint | Description | Auth required |
+|---|---|---|---|
+| POST | `/auth/register` | Create an account (email, password, name) | No |
+| POST | `/auth/login` | Log in with email/password | No |
+| POST | `/auth/logout` | Clear the session cookie | No |
+| GET | `/auth/me` | Get the current logged-in user | Yes |
+| GET | `/auth/github` | Start GitHub OAuth flow | No |
+| GET | `/auth/github/callback` | GitHub OAuth callback | No |
 
-- Render's free web service spins down after 15 minutes of inactivity — the first request after that can take 30–60 seconds.
-- GitHub OAuth login currently works reliably in Microsoft Edge; a browser-specific cookie-handling issue affecting Chrome is being investigated.
+### Products
+| Method | Endpoint | Description | Auth required |
+|---|---|---|---|
+| GET | `/products` | List all products (supports `?q=` search) | No |
+| GET | `/products/:id` | Get a single product | No |
+| POST | `/products` | Create a product | Yes |
+| PUT | `/products/:id` | Update a product | Yes |
+| DELETE | `/products/:id` | Delete a product | Yes |
+
+### AI Generation
+| Method | Endpoint | Description | Auth required |
+|---|---|---|---|
+| POST | `/generate` | Generate a product description | No (rate-limited) |
+| GET | `/generate/history` | View past generations | No |
+
+**Example — `POST /api/generate`**
+```json
+// Request
+{
+  "productName": "Organic Honey",
+  "ingredients": "100% raw organic honey",
+  "weight": "500g",
+  "features": "Cold-extracted, single-origin",
+  "tone": "premium"
+}
+
+// Response
+{
+  "success": true,
+  "description": "Indulge in the golden richness of our single-origin organic honey...",
+  "product": { "productName": "Organic Honey", "ingredients": "...", "weight": "500g", "features": "...", "tone": "premium" }
+}
+```
 
 ---
 
-## Roadmap
+## 🏗️ Architecture / Folder Structure
 
-- [x] Week 1–2: Project setup, Next.js frontend skeleton
-- [x] Week 3–4: UI components, dark/light mode, backend REST API
-- [x] Week 5: MongoDB/Mongoose integration, schema design
-- [x] Week 6: Authentication (JWT + GitHub OAuth)
-- [x] Week 7: Gemini AI integration polish
-- [x] Week 8: Frontend–backend integration
-- [x] Week 9: Deployment (Vercel + Render)
-- [ ] Week 10: Capstone polish
+```
+NutriWrite-AI/
+├── backend/
+│   ├── config/        # DB connection, Passport GitHub strategy
+│   ├── middleware/    # auth check, rate limiters
+│   ├── models/        # User, Product, GeneratedDescription (Mongoose schemas)
+│   ├── routes/        # auth, products, generate
+│   ├── validators/    # request validation schemas (Zod)
+│   └── server.js      # Express app entry point
+└── frontend/
+    └── src/
+        ├── app/            # Next.js App Router pages (home, about, dashboard, generate, login, register)
+        ├── components/     # Navbar, Hero, Card, Sprout (mascot), Footer, etc.
+        ├── components/ui/  # Button, Input, Loader, Toast primitives
+        └── context/        # AuthContext, ThemeContext
+```
+
+**Database schema (MongoDB / Mongoose):**
+- **User** — email, hashed password (optional, for OAuth-only accounts), name, GitHub/Google IDs, avatar
+- **Product** — name, ingredients, weight, features, timestamps
+- **GeneratedDescription** — stores every AI generation (inputs + output + tone) as a permanent history log
+
+MongoDB was chosen because the data here is naturally document-shaped (a product's fields vary in completeness, and each AI generation is really a self-contained record) rather than strictly relational, and Atlas's free tier made it a practical fit for a student project with a tight deployment timeline.
 
 ---
 
-## Author
+## ⚠️ Known Limitations
 
-**Shivani Rajput**  
-AI-Assisted Full Stack Web Development Internship
+- **Render free tier cold starts** — the backend spins down after inactivity, so the first request after idle time can take 20-30 seconds.
+- **No password reset flow yet** — accounts created with email/password have no "forgot password" option currently.
+- **Google OAuth** — the User schema supports it, but only GitHub OAuth is currently wired up end-to-end.
+
+---
+
+## 🙏 Credits & Acknowledgements
+
+- AI generation powered by [Google Gemini](https://ai.google.dev/)
+- Built as part of the TBI-GEU internship capstone program
+- UI icons and illustrations: custom-built "Sprout" mascot
+
+---
+
+## 📄 License
+
+Built for educational purposes as part of the TBI-GEU internship program.
